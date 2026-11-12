@@ -1,0 +1,3 @@
+# Bu dosyayı local.auto.tfvars olarak kopyalayıp kendi IP'lerini yaz
+ec2_allowed_ssh_cidrs = ["<sirket-ip>/32", "<ev-ip>/32", "<hotspot-ip>/32"]
+jenkins_allowed_cidrs = ["<sirket-ip>/32", "<ev-ip>/32", "<hotspot-ip>/32"]
