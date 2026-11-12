@@ -34,3 +34,9 @@ variable "instance_type" {
   type        = string
   default     = "t3.micro"
 }
+
+variable "root_volume_size" {
+  description = "Root EBS volume size in GB"
+  type        = number
+  default     = 20
+}
