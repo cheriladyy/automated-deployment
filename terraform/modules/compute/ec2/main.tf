@@ -80,6 +80,13 @@ resource "aws_instance" "ec2" {
     http_tokens = "required"
   }
 
+  root_block_device {
+    volume_size           = var.root_volume_size
+    volume_type           = "gp3"
+    encrypted             = true
+    delete_on_termination = true
+  }
+  
   tags = {
     Name = "ec2-host-${var.environment}"
   }
