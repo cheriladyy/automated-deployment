@@ -1,0 +1,89 @@
+name: Terraform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/core/**"
+      - "terraform/modules/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: terraform-core
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: terraform/core
+
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Secret'lar "1.2.3.4/32,5.6.7.8/32" ya da ["1.2.3.4/32","5.6.7.8/32"]
+      # biçiminde olabilir; Terraform'un beklediği JSON listesine çevrilir.
+      - name: Prepare CIDR variables
+        env:
+          SSH_CIDRS: ${{ secrets.TF_VAR_EC2_ALLOWED_SSH_CIDRS }}
+          JENKINS_CIDRS: ${{ secrets.TF_VAR_JENKINS_ALLOWED_CIDRS }}
+        run: |
+          to_list() {
+            local name="$1" value="$2" list
+            case "$value" in
+              \[*) list=$(printf '%s' "$value" | jq -c .) ;;
+              *)   list=$(printf '%s' "$value" | jq -Rsc '[splits("[,\\s]+")] | map(select(length > 0))') ;;
+            esac
+            if [ "$(printf '%s' "$list" | jq 'length')" -eq 0 ]; then
+              echo "Secret $name is empty or not set" >&2
+              return 1
+            fi
+            printf '%s' "$list"
+          }
+
+          ssh_list=$(to_list TF_VAR_EC2_ALLOWED_SSH_CIDRS "$SSH_CIDRS")
+          jenkins_list=$(to_list TF_VAR_JENKINS_ALLOWED_CIDRS "$JENKINS_CIDRS")
+
+          # IP'ler plan çıktısında görünmesin
+          printf '%s\n%s\n' "$ssh_list" "$jenkins_list" | jq -r '.[]' | sort -u | while read -r cidr; do
+            echo "::add-mask::$cidr"
+          done
+
+          echo "TF_VAR_ec2_allowed_ssh_cidrs=$ssh_list" >> "$GITHUB_ENV"
+          echo "TF_VAR_jenkins_allowed_cidrs=$jenkins_list" >> "$GITHUB_ENV"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: eu-west-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.11"
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform apply
+        run: terraform apply tfplan
