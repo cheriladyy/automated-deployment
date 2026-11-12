@@ -13,11 +13,6 @@ output "public_subnet_ids" {
   value       = module.network.public_subnet_ids
 }
 
-output "route_table_ids" {
-  description = "Route table IDs"
-  value       = module.network.route_tables_ids
-}
-
 output "ec2_public_ip" {
   description = "Public IP address of the ec2"
   value       = module.compute.ec2_public_ip

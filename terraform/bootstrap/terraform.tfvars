@@ -1,0 +1,7 @@
+project         = "automated-deployment"
+environment     = "gtopaloglu"
+aws_region      = "eu-west-1"
+github_owner    = "cheriladyy"
+github_owner_id = "158853286"
+github_repo     = "automated-deployment"
+github_repo_id  = "1454130753"
