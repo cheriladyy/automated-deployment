@@ -14,3 +14,7 @@ terraform.rc
 .env
 local.auto.tfvars
 
+
+# Blog builder
+node_modules/
+app/blog/dist/
