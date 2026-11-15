@@ -1,0 +1,10 @@
+<!doctype html>
+<html>
+  <head><meta charset="utf-8"><title>{{ env_name | default('environment') }}</title></head>
+  <body>
+    <h1>{{ env_name | default('environment') }}</h1>
+    <p>Template: {{ template }}</p>
+    <p>Expires at: {{ expires_at | default('unknown') }}</p>
+    <p>Host: {{ ansible_facts['hostname'] }}</p>
+  </body>
+</html>

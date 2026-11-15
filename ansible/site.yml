@@ -1,0 +1,25 @@
+- name: Configure self-service environment
+  hosts: all
+  become: true
+  gather_facts: no #otomatik bilgi toplamayı kapat
+
+  pre_tasks:
+    - name: Validate template
+      ansible.builtin.assert:
+        that: template in ['webserver', 'database', 'fullstack']
+        fail_msg: "template must be webserver, database or fullstack"
+
+    - name: Wait until the instance accepts SSH
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+    
+    #filter spesific fact
+    - name: Gather facts # yeni bağlantı olduğunda bilgiyi elle topla
+      ansible.builtin.setup:
+
+  roles:
+    - common
+    - role: webserver
+      when: template in ['webserver', 'fullstack']
+    - role: database
+      when: template in ['database', 'fullstack']
