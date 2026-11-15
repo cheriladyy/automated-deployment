@@ -28,3 +28,13 @@ output "ec2_private_key_secret_id" {
   value       = module.compute.ec2_private_key_secret_id
   sensitive   = true
 }
+
+output "environments_key_name" {
+  description = "Key pair name used by self-service environments"
+  value       = aws_key_pair.environments.key_name
+}
+
+output "environments_key_secret_id" {
+  description = "Secrets Manager secret holding the environments SSH private key"
+  value       = aws_secretsmanager_secret.environments_key.id
+}
