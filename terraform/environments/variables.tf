@@ -51,8 +51,3 @@ variable "owner" {
   type        = string
   default     = "unknown"
 }
-
-variable "key_name" {
-  description = "Existing EC2 key pair name used by Ansible to SSH"
-  type        = string
-}

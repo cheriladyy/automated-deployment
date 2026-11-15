@@ -75,7 +75,7 @@ resource "aws_instance" "env" {
   instance_type          = local.instance_types[var.size]
   subnet_id              = data.terraform_remote_state.core.outputs.public_subnet_ids[0]
   vpc_security_group_ids = [aws_security_group.env.id]
-  key_name               = var.key_name
+  key_name               = data.terraform_remote_state.core.outputs.environments_key_name
 
   metadata_options {
     http_tokens = "required"
