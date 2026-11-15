@@ -4,6 +4,19 @@ resource "time_static" "created" {}
 
 locals {
     expires_at = timeadd(time_static.created.rfc3339, "${var.ttl_days * 24}h")
+
+    instance_types = {
+        small  = "t3.micro"
+        medium = "t3.small"
+        large  = "t3.medium"
+
+    }
+
+    template_ports = {
+        webserver = [80]
+        database  = [5432]
+        fullstack = [80, 5432] 
+    }
 }
 
 # Core'daki ortak VPC ve subnet'ler
