@@ -1,0 +1,25 @@
+- name: Install PostgreSQL
+  ansible.builtin.apt:
+    name: postgresql
+    state: present
+
+- name: Listen on all interfaces
+  ansible.builtin.copy:
+    content: "listen_addresses = '*'\n"
+    dest: "/etc/postgresql/{{ postgresql_version }}/main/conf.d/listen.conf"
+    owner: postgres
+    group: postgres
+    mode: "0644"
+  notify: Restart postgresql
+
+- name: Allow password logins from the VPC
+  ansible.builtin.lineinfile:
+    path: "/etc/postgresql/{{ postgresql_version }}/main/pg_hba.conf"
+    line: "host all all {{ postgresql_allowed_cidr }} scram-sha-256"
+  notify: Restart postgresql
+
+- name: Ensure PostgreSQL is running and enabled
+  ansible.builtin.service:
+    name: postgresql
+    state: started
+    enabled: true
