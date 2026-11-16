@@ -1,0 +1,43 @@
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+    }
+
+    parameters {
+        string(
+            name: 'ENV_NAME',
+            defaultValue: '',
+            description: 'Name of the environment to destroy.'
+        )
+    }
+
+    environment {
+        AWS_DEFAULT_REGION = 'eu-west-1'
+        TF_IN_AUTOMATION   = 'true'
+        TF_INPUT           = 'false'
+        STATE_BUCKET       = 'gtopaloglu-tfstate'
+        STATE_PREFIX       = 'automated-deployment/environments'
+    }
+
+    stages {
+        stage('Validate') {
+            steps {
+                script {
+                    if (!(params.ENV_NAME ==~ /^[a-z][a-z0-9-]{2,20}$/)) {
+                        error "Invalid ENV_NAME: '${params.ENV_NAME}'."
+                    }
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${params.ENV_NAME}"
+                }
+            }
+        }
+
+        stage('Destroy') {
+            steps {
+                sh 'bash scripts/destroy-env.sh "$ENV_NAME"'
+            }
+        }
+    }
+}

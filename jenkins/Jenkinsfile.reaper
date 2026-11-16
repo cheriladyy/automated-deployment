@@ -1,0 +1,29 @@
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '100'))
+    }
+
+    triggers {
+        // Once an hour. H lets Jenkins pick the minute.
+        cron('H * * * *')
+    }
+
+    environment {
+        AWS_DEFAULT_REGION = 'eu-west-1'
+        TF_IN_AUTOMATION   = 'true'
+        TF_INPUT           = 'false'
+        STATE_BUCKET       = 'gtopaloglu-tfstate'
+        STATE_PREFIX       = 'automated-deployment/environments'
+    }
+
+    stages {
+        stage('Reap expired environments') {
+            steps {
+                sh 'bash scripts/reap-expired.sh'
+            }
+        }
+    }
+}
