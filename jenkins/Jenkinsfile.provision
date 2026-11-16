@@ -1,0 +1,151 @@
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '30'))
+    }
+
+    parameters {
+        string(
+            name: 'ENV_NAME',
+            defaultValue: '',
+            description: 'Environment name. 3-21 characters, lowercase letters / digits / hyphens, must start with a letter. Example: ali-web'
+        )
+        choice(
+            name: 'TEMPLATE',
+            choices: ['webserver', 'database', 'fullstack'],
+            description: 'webserver = nginx, database = PostgreSQL, fullstack = both'
+        )
+        choice(
+            name: 'SIZE',
+            choices: ['small', 'medium', 'large'],
+            description: 'small = t3.micro, medium = t3.small, large = t3.medium'
+        )
+        choice(
+            name: 'TTL_DAYS',
+            choices: ['1', '2', '3', '4', '5', '6', '7'],
+            description: 'Number of days before the environment is destroyed automatically'
+        )
+        booleanParam(
+            name: 'UPDATE_EXISTING',
+            defaultValue: false,
+            description: 'Update the environment if the name already exists. Use it to retry a failed build or to extend the lifetime.'
+        )
+    }
+
+    environment {
+        AWS_DEFAULT_REGION = 'eu-west-1'
+        TF_IN_AUTOMATION   = 'true'
+        TF_INPUT           = 'false'
+        STATE_BUCKET       = 'gtopaloglu-terraform-state-bucket'
+        STATE_PREFIX       = 'automated-deployment/environments'
+        SSH_KEY_SECRET     = 'ec2-host-ssh-private-key-environments'
+        ANSIBLE_CONFIG     = "${WORKSPACE}/ansible/ansible.cfg"
+    }
+
+    stages {
+        stage('Validate') {
+            steps {
+                script {
+                    if (!(params.ENV_NAME ==~ /^[a-z][a-z0-9-]{2,20}$/)) {
+                        error "Invalid ENV_NAME: '${params.ENV_NAME}'. Use 3-21 characters, lowercase letters / digits / hyphens, starting with a letter."
+                    }
+
+                    // Jenkins user who started the build, used for the Owner tag
+                    def causes = currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')
+                    env.OWNER = causes ? causes[0].userId : 'jenkins'
+
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${params.ENV_NAME}"
+                }
+            }
+        }
+
+        stage('Check name') {
+            steps {
+                sh '''
+                    KEY="$STATE_PREFIX/$ENV_NAME/terraform.tfstate"
+                    if aws s3api head-object --bucket "$STATE_BUCKET" --key "$KEY" >/dev/null 2>&1; then
+                        if [ "$UPDATE_EXISTING" = "true" ]; then
+                            echo "Environment already exists and UPDATE_EXISTING is checked: it will be updated."
+                        else
+                            echo "ERROR: an environment named '$ENV_NAME' already exists."
+                            echo "Choose another name, remove it with the destroy job, or check UPDATE_EXISTING."
+                            exit 1
+                        fi
+                    fi
+                '''
+            }
+        }
+
+        stage('Terraform apply') {
+            steps {
+                dir('terraform/environments') {
+                    sh '''
+                        terraform init -reconfigure \
+                          -backend-config="key=$STATE_PREFIX/$ENV_NAME/terraform.tfstate"
+
+                        terraform apply -auto-approve \
+                          -var "env_name=$ENV_NAME" \
+                          -var "template=$TEMPLATE" \
+                          -var "size=$SIZE" \
+                          -var "ttl_days=$TTL_DAYS" \
+                          -var "owner=$OWNER"
+                    '''
+                    script {
+                        env.PUBLIC_IP  = sh(script: 'terraform output -raw public_ip',  returnStdout: true).trim()
+                        env.PRIVATE_IP = sh(script: 'terraform output -raw private_ip', returnStdout: true).trim()
+                        env.EXPIRES_AT = sh(script: 'terraform output -raw expires_at', returnStdout: true).trim()
+                    }
+                }
+            }
+        }
+
+        stage('Ansible configure') {
+            steps {
+                dir('ansible') {
+                    sh '''
+                        KEY_FILE=$(mktemp)
+                        trap 'rm -f "$KEY_FILE"' EXIT
+
+                        aws secretsmanager get-secret-value \
+                          --secret-id "$SSH_KEY_SECRET" \
+                          --query SecretString --output text > "$KEY_FILE"
+
+                        # Private IP: the environment security group allows SSH only from the Jenkins security group,
+                        # and that rule only matches traffic inside the VPC (private IP).
+                        ansible-playbook -i "$PRIVATE_IP," site.yml \
+                          --private-key "$KEY_FILE" \
+                          -e "template=$TEMPLATE" \
+                          -e "env_name=$ENV_NAME" \
+                          -e "expires_at=$EXPIRES_AT"
+                    '''
+                }
+            }
+        }
+
+        stage('Summary') {
+            steps {
+                script {
+                    currentBuild.description = "${params.TEMPLATE} | ${params.SIZE} | ${env.PUBLIC_IP} | expires ${env.EXPIRES_AT}"
+                }
+                sh '''
+                    echo "=================================================="
+                    echo " Environment : $ENV_NAME"
+                    echo " Template    : $TEMPLATE"
+                    echo " Size        : $SIZE"
+                    echo " Public IP   : $PUBLIC_IP"
+                    echo " Private IP  : $PRIVATE_IP"
+                    echo " Expires at  : $EXPIRES_AT (UTC)"
+                    echo "=================================================="
+                '''
+            }
+        }
+    }
+
+    post {
+        failure {
+            echo "Build failed. The environment may be half created: remove it with the destroy job, or check UPDATE_EXISTING and run again."
+        }
+    }
+}
