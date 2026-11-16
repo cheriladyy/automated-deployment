@@ -30,7 +30,7 @@ pipeline {
         booleanParam(
             name: 'UPDATE_EXISTING',
             defaultValue: false,
-            description: 'Update the environment if the name already exists. Use it to retry a failed build or to extend the lifetime.'
+            description: 'Update the environment if the name already exists.'
         )
     }
 
@@ -38,7 +38,7 @@ pipeline {
         AWS_DEFAULT_REGION = 'eu-west-1'
         TF_IN_AUTOMATION   = 'true'
         TF_INPUT           = 'false'
-        STATE_BUCKET       = 'gtopaloglu-terraform-state-bucket'
+        STATE_BUCKET       = 'gtopaloglu-tfstate'
         STATE_PREFIX       = 'automated-deployment/environments'
         SSH_KEY_SECRET     = 'ec2-host-ssh-private-key-environments'
         ANSIBLE_CONFIG     = "${WORKSPACE}/ansible/ansible.cfg"

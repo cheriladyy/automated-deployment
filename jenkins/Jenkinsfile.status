@@ -1,0 +1,36 @@
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '50'))
+    }
+
+    triggers {
+        // Every 15 minutes.
+        cron('H/15 * * * *')
+    }
+
+    environment {
+        AWS_DEFAULT_REGION = 'eu-west-1'
+    }
+
+    stages {
+        stage('List environments') {
+            steps {
+                sh '''
+                    bash scripts/list-envs.sh > environments.txt
+                    cat environments.txt
+                '''
+                script {
+                    def count = sh(
+                        script: 'tail -n +2 environments.txt | grep -c . || true',
+                        returnStdout: true
+                    ).trim()
+                    currentBuild.description = "${count} active environment(s)"
+                }
+                archiveArtifacts artifacts: 'environments.txt'
+            }
+        }
+    }
+}
