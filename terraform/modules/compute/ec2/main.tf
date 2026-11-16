@@ -121,6 +121,18 @@ resource "aws_instance" "ec2" {
     $APT update
     $APT install jenkins
 
+    # Self-service platform araçları: Terraform, Ansible, AWS CLI, jq
+    curl -fsSL https://apt.releases.hashicorp.com/gpg -o /etc/apt/keyrings/hashicorp.asc
+    echo "deb [signed-by=/etc/apt/keyrings/hashicorp.asc] https://apt.releases.hashicorp.com noble main" > /etc/apt/sources.list.d/hashicorp.list
+    $APT update
+    $APT install terraform ansible unzip jq
+
+    curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o /tmp/awscliv2.zip
+    unzip -q /tmp/awscliv2.zip -d /tmp
+    /tmp/aws/install
+    rm -rf /tmp/aws /tmp/awscliv2.zip
+
+
     # Jenkins'in geçici klasörü /tmp yerine diskte olsun
     mkdir -p /var/lib/jenkins/tmp
     chown jenkins:jenkins /var/lib/jenkins/tmp
