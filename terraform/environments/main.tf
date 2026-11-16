@@ -23,7 +23,7 @@ locals {
 data "terraform_remote_state" "core" {
   backend = "s3"
   config = {
-    bucket = "gtopaloglu-terraform-state-bucket"
+    bucket = "gtopaloglu-tfstate"
     key    = "automated-deployment/core/dev/terraform.tfstate"
     region = "eu-west-1"
   }

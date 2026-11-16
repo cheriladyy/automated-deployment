@@ -21,3 +21,8 @@ output "ec2_public_ip" {
   value       = aws_instance.ec2.public_ip
   depends_on  = [aws_vpc_security_group_ingress_rule.ec2_security_group_rule_ssh, aws_vpc_security_group_egress_rule.ec2_group_rule_egress]
 }
+
+output "ec2_iam_role_name" {
+  description = "IAM Role name of the ec2 Host"
+  value       = aws_iam_role.ec2_role.name
+}

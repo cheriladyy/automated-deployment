@@ -8,7 +8,7 @@ locals {
   allowed_subs = [for prefix in local.sub_prefixes : "${prefix}:ref:refs/heads/main"]
 
   account_id   = data.aws_caller_identity.current.account_id
-  state_bucket = "gtopaloglu-terraform-state-bucket"
+  state_bucket = "gtopaloglu-tfstate"
 }
 
 data "aws_caller_identity" "current" {}
@@ -88,6 +88,9 @@ data "aws_iam_policy_document" "terraform_deployer" {
       "iam:ListAttachedRolePolicies",
       "iam:ListInstanceProfilesForRole",
       "iam:DetachRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:GetRolePolicy",
+      "iam:DeleteRolePolicy",
     ]
     resources = ["arn:aws:iam::${local.account_id}:role/ec2Role-*"]
   }
