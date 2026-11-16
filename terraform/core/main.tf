@@ -23,4 +23,5 @@ module "compute" {
   public_subnet_ids = module.network.public_subnet_ids
   allowed_ssh_cidrs = var.ec2_allowed_ssh_cidrs
   jenkins_allowed_cidrs = var.jenkins_allowed_cidrs
+  instance_type         = "t3.small"
 }
